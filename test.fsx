@@ -38,20 +38,7 @@ let plus x y = x + y
 
 let ab = fun s -> ss
 
-s
 
-module DateTime =
-    let start = DateTime(1970,1,1,0,0,0,0, DateTimeKind.Utc)
+let pp2 a b = $"[{a} ++ {b}]"
 
-    let toLocalTime epoch = 
-        (start.AddSeconds (float epoch)).ToLocalTime ()
-
-    let toEpoch (date: DateTime) =
-        let a = (date - start)
-        (a.Ticks, int64 a.TotalSeconds, a.TotalMilliseconds)
-
-let (a, e, c) = (DateTime.Now |> DateTime.toEpoch) 
-
-
-
-let ts = TimeSpan (0, 1, 1)
+Map.empty

@@ -20,13 +20,16 @@ module MonobankConverter =
         comment = st.comment
     }
 
-let statementWriter source (dt: DateTime) (statements: Statement seq) = 
+let statementWriter (map: Map<string, string>) (dt: DateTime) (statements: Statement seq) = 
+    let tr src = 
+        Map.tryFind src map |> Option.defaultValue src
     let sb = Text.StringBuilder ()
+    let source = tr "Assets:Monobank:Card"
     sb.Append $"{dt:``yyyy/MM/dd``} *\n  {source}\n" |> ignore
     statements
     |> Seq.map (fun s ->
         let amount = - (float) s.amount / 100.0
-        let description = s.description.Replace ("\n"," .. ")
+        let description = s.description.Replace ("\n"," .. ") |> tr
         let comment = 
             s.comment |> Option.map (sprintf " ; %s") |> Option.defaultValue ""
         $"  {description,-30} {amount,-30:``#,#.#0 UAH``}{comment}")
@@ -38,14 +41,16 @@ let statementWriter source (dt: DateTime) (statements: Statement seq) =
 let show (param: Cmdline.Request) = 
     use h = Monobank.Api.create param.key
 
-    let time1 = param.range.start.ToUniversalTime () |> DateTime.toEpoch
-    let time2 = time1 + param.range.length
+    let fromTime = param.range.start.ToUniversalTime () |> DateTime.toEpoch
+    let tillTime = fromTime + param.range.length
 
-    Monobank.Api.statements h time1 time2
+    let trMap = Map.empty |> Map.add "АТБ" "Expences:Food:Super:ATB"
+
+    Monobank.Api.statements h 0 fromTime tillTime
     |> Async.RunSynchronously
     |> Array.map MonobankConverter.mapStatement
     |> Array.groupBy (fun s -> s.date.Date)
-    |> Array.map (fun (d, a) -> statementWriter "Assets:Monobank:Card" d a)
+    |> Array.map (fun (d, a) -> statementWriter trMap d a)
     |> String.concat "\n;\n"
     |> printfn "%O"
 

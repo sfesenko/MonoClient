@@ -12,8 +12,8 @@ let parse (line: string[]) =
     if Array.length line <> 3 then
         None
     else
-        let year = line.[1] |> int
-        let month = line.[2] |> int
+        let year = int line.[1]
+        let month = int line.[2] 
         let start = DateTime.local (year,  month,  1)
         let length = int64 (start.AddMonths 1 - start).TotalSeconds - 1L
         { 

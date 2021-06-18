@@ -75,6 +75,6 @@ module Api =
 
     let clientInfo (t: t) : Async<ClientInfo> = httpGet t apiClientInfo
 
-    let statements (t: t) fromTime toTime: Async<array<Statement>> =
-        apiBase + $"/personal/statement/0/{fromTime}/{toTime}" 
+    let statements (t: t) account fromTime toTime: Async<array<Statement>> =
+        apiBase + $"/personal/statement/{account}/{fromTime}/{toTime}" 
         |> httpGet t
