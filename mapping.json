@@ -1,0 +1,14 @@
+{
+    "MonoBankAccount": "Assets:Monobank:Card",
+
+    "АТБ":              "Expences:Food:Super:ATB",
+    "Fozzy":            "Expences:Food:Super:Fozzy",
+    "Сільпо" :          "Expences:Food:Super:Silpo",
+    "Ашан":             "Expences:Food:Super:Ashan",
+    "dmlr":             "Expences:Food:Super:Dimler",
+    "VARUS":            "Expences:Food:Super:Varus",
+    "FOZZI":            "Expences:Food:Super:Fozzy",
+    "DMart":            "Expences:Food:Super:Dmart",
+
+    "end": "end"
+}

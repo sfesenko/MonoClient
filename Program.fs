@@ -41,6 +41,19 @@ module Cmdline =
         """Usage:
     CLIENT <api key> <year> <month>"""
 
+module Json =
+    open System.Text.Json
+    open System.Text.Json.Serialization
+
+    let jso = JsonSerializerOptions()
+    jso.Converters.Add (JsonFSharpConverter())
+
+    let deserialize (json: string) =
+        JsonSerializer.Deserialize (json, jso)
+
+    let serialize t =
+        JsonSerializer.Serialize (t, jso)
+
 module Monobank =
 
     type Account = {
@@ -82,35 +95,26 @@ module Monobank =
 
     type ApiError = { errorDescription: string }
 
-    open System.Text.Json
-    open System.Text.Json.Serialization
-
     module Api =
         type t = private { c : Net.Http.HttpClient }
             with interface IDisposable with member this.Dispose() = this.c.Dispose ()
 
-        let jso = JsonSerializerOptions()
         let xTokenHeader = "X-Token"
         let apiBase = "https://api.monobank.ua/"
         let apiClientInfo = apiBase + "/personal/client-info"
-
-        do
-            jso.Converters.Add (JsonFSharpConverter())
 
         let create key = 
             let client = new System.Net.Http.HttpClient ()
             client.DefaultRequestHeaders.Add (xTokenHeader, [key])
             { c = client }
 
-        let deserialize (json: string) = JsonSerializer.Deserialize (json, jso)
-
         let httpGet (t: t) (url: string) = async {
             let! rsp = t.c.GetAsync url |> Async.AwaitTask
             let! json = rsp.Content.ReadAsStringAsync () |> Async.AwaitTask
             if rsp.IsSuccessStatusCode then
-                return deserialize json
+                return Json.deserialize json
             else
-                let error: ApiError = deserialize json
+                let error: ApiError = Json.deserialize json
                 return failwith error.errorDescription
         }
 
@@ -119,7 +123,6 @@ module Monobank =
         let statements (t: t) account fromTime toTime: Async<array<Statement>> =
             apiBase + $"/personal/statement/{account}/{fromTime}/{toTime}" 
             |> httpGet t
-
 
 module Main =
     type Statement = {
@@ -152,7 +155,7 @@ module Main =
             let description = s.description.Replace ("\n"," .. ") |> tr
             let comment = 
                 s.comment |> Option.map (sprintf " ; %s") |> Option.defaultValue ""
-            $"  {description,-30} {amount,-30:``#,#.#0 UAH``}{comment}")
+            $"  {description,-40} {amount,-30:``#,#.#0 UAH``}{comment}")
         |> String.concat "\n"
         |> sb.Append 
         |> string
@@ -164,7 +167,8 @@ module Main =
         let fromTime = param.range.start.ToUniversalTime () |> DateTime.toEpoch
         let tillTime = fromTime + param.range.length
 
-        let trMap = Map.empty |> Map.add "АТБ" "Expences:Food:Super:ATB"
+        let trMap = System.IO.File.ReadAllText "mapping.json" |> Json.deserialize
+        // Map.empty |> Map.add "АТБ" "Expences:Food:Super:ATB"
 
         Monobank.Api.statements h 0 fromTime tillTime
         |> Async.RunSynchronously
