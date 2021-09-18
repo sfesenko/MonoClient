@@ -155,7 +155,7 @@ module Main =
             let description = s.description.Replace ("\n"," .. ") |> tr
             let comment = 
                 s.comment |> Option.map (sprintf " ; %s") |> Option.defaultValue ""
-            $"  {description,-40} {amount,-30:``#,#.#0 UAH``}{comment}")
+            $"  {description,-40} {amount,-30:``#,#.#0 UAH``}{comment}".TrimEnd())
         |> String.concat "\n"
         |> sb.Append 
         |> string
