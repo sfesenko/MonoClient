@@ -1,14 +1,19 @@
 {
-    "MonoBankAccount": "Assets:Monobank:Card",
-
-    "АТБ":              "Expences:Food:Super:ATB",
-    "Fozzy":            "Expences:Food:Super:Fozzy",
-    "Сільпо" :          "Expences:Food:Super:Silpo",
-    "Ашан":             "Expences:Food:Super:Ashan",
-    "dmlr":             "Expences:Food:Super:Dimler",
-    "VARUS":            "Expences:Food:Super:Varus",
-    "FOZZI":            "Expences:Food:Super:Fozzy",
-    "DMart":            "Expences:Food:Super:Dmart",
-
-    "end": "end"
+  "MonoBankAccount": "Assets:Monobank:Card",
+  "Mapping": {
+    "Expences:Food:Super:ATB": ["АТБ"],
+    "Expences:Food:Super:Fozzy": ["Fozzy", "FOZZI"],
+    "Expences:Food:Super:Silpo": ["Сільпо"],
+    "Expences:Food:Super:Ashan": ["Ашан"],
+    "Expences:Food:Super:Dimler": ["dmlr"],
+    "Expences:Food:Super:Varus": ["VARUS"],
+    "Expences:Food:Super:Dmart": ["DMart"],
+    "Expences:Food:Super:Рукавичка": ["Рукавичка"],
+    "Expences:Car:Parking": [
+      "/AP \\d+$/",
+      "Парковка",
+      "PTKS PARKING"
+    ]
+  }
 }
+
