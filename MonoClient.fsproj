@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="Program.fs" />
     <None Include="MonoClient.dll.config" />
+    <None Include="test.fsx" />
   </ItemGroup>
 
   <ItemGroup>
