@@ -3,17 +3,6 @@
   "Mapping": {
     "Expences:Food:Super:ATB": ["АТБ"],
     "Expences:Food:Super:Fozzy": ["Fozzy", "FOZZI"],
-    "Expences:Food:Super:Silpo": ["Сільпо"],
-    "Expences:Food:Super:Ashan": ["Ашан"],
-    "Expences:Food:Super:Dimler": ["dmlr"],
-    "Expences:Food:Super:Varus": ["VARUS"],
-    "Expences:Food:Super:Dmart": ["DMart"],
-    "Expences:Food:Super:Рукавичка": ["Рукавичка"],
-    "Expences:Car:Parking": [
-      "/AP \\d+$/",
-      "Парковка",
-      "PTKS PARKING"
-    ]
+    "Expences:Car:Parking": [ "/AP \\d+$/" ]
   }
 }
-

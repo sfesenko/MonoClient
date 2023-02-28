@@ -17,7 +17,7 @@ module Cmdline =
     type DateRange = { start: DateTime; length: int64 }
     type Request = { key: string; range: DateRange }
 
-    let parse (line: string[]) =
+    let parse (line: string[]) : Request option =
         if Array.length line <> 3 then
             None
         else
@@ -114,18 +114,20 @@ module Mapping =
     open System.Text.RegularExpressions
     type t = { monoBankAccount: string; map: Map<string, string>; regexp: List<Regex * String> }
 
-    let readMapping (fileName: string) =
-        let json: {| MonoBankAccount: string; Mapping: Map<string, List<string>> |} =
-            System.IO.File.ReadAllText fileName |> Json.deserialize
+    let readMapping (json: string) =
+        let json: {| MonoBankAccount: string; Mapping: Map<string, List<string>> |} = Json.deserialize json
 
         let mappings =
             json.Mapping
             |> Map.toSeq
-            |> Seq.map (fun (k, v) -> v |> Seq.map (fun l -> l, k))
+            |> Seq.map (fun (liability, keys) -> keys |> Seq.map (fun key -> key, liability))
             |> Seq.reduce Seq.append
             |> Seq.fold
-                (fun (regexs, map) (k, v) ->
-                    if k.StartsWith '/' && k.EndsWith '/' then (Regex(k[1 .. k.Length - 2]), v) :: regexs, map else regexs, Map.add k v map)
+                (fun (regex, direct) (k, v) ->
+                    if k.StartsWith '/' && k.EndsWith '/' then
+                        (Regex(k[1 .. k.Length - 2]), v) :: regex, direct
+                    else
+                        regex, Map.add k v direct)
                 ([], Map.empty)
 
         { monoBankAccount = json.MonoBankAccount; map = snd mappings; regexp = fst mappings }
@@ -153,16 +155,16 @@ module Main =
         let source = map.monoBankAccount
         sb.Append $"{dt:``yyyy/MM/dd``} *\n  {source}\n" |> ignore
 
-        // combine multiple statements
+        // combine multiple statements with same description into single line
         let combine (description, statements) : int64 * 'a * StringBuilder =
             let (amount, comment) =
                 statements
                 |> Seq.fold
                     (fun (amount, comments: StringBuilder) st ->
                         Option.iter
-                            (fun c ->
-                                if not <| String.IsNullOrWhiteSpace c then
-                                    comments.Append $"; {c}" |> ignore)
+                            (fun note ->
+                                if not <| String.IsNullOrWhiteSpace note then
+                                    comments.Append $"; {note}" |> ignore)
                             st.comment
 
                         (amount + st.amount, comments))
@@ -191,7 +193,7 @@ module Main =
         let fromTime = param.range.start.ToUniversalTime() |> DateTime.toEpoch
         let tillTime = fromTime + param.range.length
 
-        let trMap = Mapping.readMapping "mapping.json"
+        let trMap = "mapping.json" |> System.IO.File.ReadAllText |> Mapping.readMapping
         // Map.empty |> Map.add "АТБ" "Expenses:Food:Super:ATB"
 
         Monobank.Api.statements h 0 fromTime tillTime

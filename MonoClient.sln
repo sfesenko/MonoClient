@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MonoClient", "MonoClient.fsproj", "{1630A3C2-5C50-4F21-A69D-B9E11D0B37BC}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "test", "test\test.fsproj", "{477DA3A1-B6DF-4B64-9EEA-8709601FDDE3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1630A3C2-5C50-4F21-A69D-B9E11D0B37BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1630A3C2-5C50-4F21-A69D-B9E11D0B37BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1630A3C2-5C50-4F21-A69D-B9E11D0B37BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1630A3C2-5C50-4F21-A69D-B9E11D0B37BC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{477DA3A1-B6DF-4B64-9EEA-8709601FDDE3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{477DA3A1-B6DF-4B64-9EEA-8709601FDDE3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{477DA3A1-B6DF-4B64-9EEA-8709601FDDE3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{477DA3A1-B6DF-4B64-9EEA-8709601FDDE3}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
+
