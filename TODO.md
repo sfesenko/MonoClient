@@ -1,3 +1,2 @@
-- ignore blank comments
 - handle errors in mapping.json
 - 

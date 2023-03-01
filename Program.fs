@@ -148,12 +148,8 @@ module Main =
         let findByRegex (key: string) : String option = map.regexp |> List.tryFind (fun (regex, _) -> regex.IsMatch key) |> Option.map snd
         Map.tryFind src map.map |> Option.orElseWith (fun () -> findByRegex src) |> Option.defaultValue src
 
-    let statementWriter (map: Mapping.t) (dt: DateTime) (statements: Statement seq) =
+    let statementWriter (map: Mapping.t) (dt: DateTime) (statements: Statement seq) : string =
         let tr (src: string) : string = tr map (src.Replace("\n", " .. "))
-
-        let sb = Text.StringBuilder()
-        let source = map.monoBankAccount
-        sb.Append $"{dt:``yyyy/MM/dd``} *\n  {source}\n" |> ignore
 
         // combine multiple statements with same description into single line
         let combine (description, statements) : int64 * 'a * StringBuilder =
@@ -164,7 +160,10 @@ module Main =
                         Option.iter
                             (fun note ->
                                 if not <| String.IsNullOrWhiteSpace note then
-                                    comments.Append $"; {note}" |> ignore)
+                                    if comments.Length > 0 then
+                                        comments.Append " ; " |> ignore
+
+                                    comments.Append note |> ignore)
                             st.comment
 
                         (amount + st.amount, comments))
@@ -172,6 +171,10 @@ module Main =
 
             amount, description, comment
 
+        let sb = StringBuilder()
+        
+        if not <| Seq.isEmpty statements then
+            sb.Append $"{dt:``yyyy/MM/dd``} *\n  {map.monoBankAccount}\n" |> ignore    
         statements
         |> Seq.groupBy (fun st -> tr st.description)
         |> Seq.map combine
@@ -179,7 +182,7 @@ module Main =
             let amount = -(float) amount / 100.0
 
             if comment.Length > 0 then
-                comment.Insert(0, " ; ") |> ignore
+                comment.Insert(0, "; ") |> ignore
 
             $"  {description, -40} {amount, -30:``#,#.#0 UAH``}{comment}".TrimEnd())
         |> String.concat "\n"

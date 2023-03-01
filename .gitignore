@@ -8,3 +8,4 @@ _secret/
 
 .fake
 .ionide
+*.DotSettings.user
