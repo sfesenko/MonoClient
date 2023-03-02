@@ -1,14 +1,13 @@
 module Tests
 
-open System.Text.RegularExpressions
 open MonoClient
 open Xunit
 open FsUnit.Xunit
 
-module MappingTest =
+module Mapping =
     [<Fact>]
     let read_mappings () =
-        let actual =
+        let actual: Mapping.t =
             """
 {
   "MonoBankAccount": "account label",
@@ -18,15 +17,13 @@ module MappingTest =
   }
 }
 """
-            |> Mapping.readMapping
+            |> Mapping.fromJson
 
-        let expected: Mapping.t =
-            { monoBankAccount = "account label"
-              map = Map.ofList [ ("yellow", "cat"); ("green", "cat") ]
-              regexp = [ Regex("funny"), "bunny" ] }
+        let expected = """{ monoBankAccount = "account label"
+  map = map [("green", "cat"); ("yellow", "cat")]
+  regexp = [(funny, "bunny")] }"""
 
-        // Regex is  not comparable, so use string
-        string actual |> should equal <| string expected
+        string actual |> should equal expected
 
 module CmdlineTest =
     [<Fact>]
@@ -39,57 +36,61 @@ module CmdlineTest =
         actual |> should equal expected
 
 module MainTest =
-    open Mapping
+    // open Mapping
     open Main
+    open Program
 
-    let statement = { id = "1"; date = System.DateTime(0); description = "yellow!"; comment = None; amount = 0 }
-
-    let mapping = { monoBankAccount = "label"; map = Map.ofList [ ("yellow!", "green") ]; regexp = [] }
     let dateTime = System.DateTime(0L)
 
     [<Fact>]
     let statement_writer () =
+        let statement = { id = "1"; date = System.DateTime(0); description = "green"; comment = None; amount = 0 }
         let statements =
             seq {
                 { statement with amount = -123L; comment = Some "everything" }
                 { statement with amount = -456L; comment = None }
                 { statement with amount = -789L; comment = Some "anything" }
             }
-
+        let mapping = """{ "MonoBankAccount": "label", "Mapping": { "yellow!": ["green"] } }""" |> Mapping.fromJson
         let actual = statementWriter mapping dateTime statements
 
         let expected =
             "\
 0001/01/01 *
   label
-  green                                    13.68 UAH                     ; everything ; anything"
-
+  yellow!                                  13.68 UAH             ; everything ; anything"
+        // Assert.Equal (expected, actual)
         actual |> should equal expected
 
     [<Fact>]
     let statement_writer_no_comment () =
+        let statement = { id = "1"; date = System.DateTime(0); description = "green"; comment = None; amount = 0 }
+        let mapping = """{ "MonoBankAccount": "label", "Mapping": { "yellow!": ["green"] } }""" |> Mapping.fromJson
+        
         let actual = statementWriter mapping dateTime [ statement ]
 
         let expected =
             "\
 0001/01/01 *
   label
-  green                                    -.00 UAH"
+  yellow!                                  -0.00 UAH"
 
         actual |> should equal expected
 
 
     [<Fact>]
-    let statement_writer_empty () = statementWriter mapping dateTime Seq.empty |> should be Empty
+    let statement_writer_empty () =
+        let mapping = """{ "MonoBankAccount": "label", "Mapping": {}}""" |> Mapping.fromJson
+        statementWriter mapping dateTime Seq.empty |> should be Empty
 
     [<Fact>]
     let statement_writer_regexp () =
-        let mapping = { monoBankAccount = "a"; map = Map.ofList["cat", "animal"]; regexp = [ (Regex("red|white"), "color") ] }
-
+        let mapping = """{ "MonoBankAccount": "a", "Mapping": { "animal": ["cat"], "color": [ "/red|white/" ] } }""" |> Mapping.fromJson
+        let statement = { id = "1"; date = System.DateTime(0); description = "green"; comment = None; amount = 0 }
         let statements =
             seq {
                 { statement with amount = -123L; description = "red" }
-                { statement with amount = -321L; description = "white" }
+                { statement with amount = -321L; description = "white"; comment = Some "grey" }
                 { statement with amount = -111L; description = "blue" }
                 { statement with amount = -222L; description = "cat" }
             }
@@ -100,7 +101,7 @@ module MainTest =
             "\
 0001/01/01 *
   a
-  color                                    4.44 UAH
+  color                                    4.44 UAH             ; grey
   blue                                     1.11 UAH
   animal                                   2.22 UAH"
 

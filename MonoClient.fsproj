@@ -1,19 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
-    <!-- <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects> -->
-  </PropertyGroup>
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <TargetFramework>net7.0</TargetFramework>
+        <!-- <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects> -->
+    </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Include="Program.fs" />
-    <None Include="MonoClient.dll.config" />
-    <None Include="test.fsx" />
-  </ItemGroup>
+    <ItemGroup>
+        <Compile Include="Program.fs"/>
+        <None Include="MonoClient.dll.config"/>
+        <None Include="test.fsx"/>
+    </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="FSharp.SystemTextJson" Version="1.1.23" />
-  </ItemGroup>
+    <ItemGroup>
+    </ItemGroup>
 
 </Project>

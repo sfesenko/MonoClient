@@ -4,9 +4,9 @@ open System
 open System.Text
 
 module DateTime =
-    let start = DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+    let start = DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc)
 
-    let toLocalTime (epoch: uint64) = (start.AddSeconds(float epoch)).ToLocalTime()
+    let toLocalTime (epoch: uint64) = start.AddSeconds(float epoch).ToLocalTime()
 
     let toEpoch (date: DateTime) = (date - start).TotalSeconds |> int64
 
@@ -34,14 +34,11 @@ module Cmdline =
 
 module Json =
     open System.Text.Json
-    open System.Text.Json.Serialization
+    let deserialize (json: string) : 'a = JsonSerializer.Deserialize json
+    let serialize (t: 'a) : string = JsonSerializer.Serialize t
 
-    let jso = JsonSerializerOptions()
-    jso.Converters.Add(JsonFSharpConverter())
-
-    let deserialize (json: string) = JsonSerializer.Deserialize(json, jso)
-
-    let serialize t = JsonSerializer.Serialize(t, jso)
+module Main =
+    type Statement = { id: string; date: DateTime; description: string; amount: int64; comment: string option }
 
 module Monobank =
 
@@ -76,6 +73,13 @@ module Monobank =
 
     type ApiError = { errorDescription: string }
 
+    let mapStatement (st: Statement) : Main.Statement =
+        { id = st.id
+          date = DateTime.toLocalTime st.time
+          description = st.description
+          amount = st.amount
+          comment = st.comment }
+
     module Api =
         type t =
             private
@@ -86,16 +90,15 @@ module Monobank =
 
         let xTokenHeader = "X-Token"
         let apiBase = "https://api.monobank.ua/"
-        let apiClientInfo = apiBase + "/personal/client-info"
 
-        let create key =
+        let create (key: string) : t =
             let client = new System.Net.Http.HttpClient()
             client.DefaultRequestHeaders.Add(xTokenHeader, [ key ])
             { c = client }
 
-        let httpGet (t: t) (url: string) =
+        let httpGet (api: t) (url: string) : Async<'a> =
             async {
-                let! rsp = t.c.GetAsync url |> Async.AwaitTask
+                let! rsp = api.c.GetAsync url |> Async.AwaitTask
                 let! json = rsp.Content.ReadAsStringAsync() |> Async.AwaitTask
 
                 if rsp.IsSuccessStatusCode then
@@ -105,23 +108,23 @@ module Monobank =
                     return failwith error.errorDescription
             }
 
-        let clientInfo (t: t) : Async<ClientInfo> = httpGet t apiClientInfo
+        let clientInfo (api: t) : Async<ClientInfo> = $"{apiBase}/personal/client-info" |> httpGet api
 
         let statements (t: t) account fromTime toTime : Async<array<Statement>> =
-            apiBase + $"/personal/statement/{account}/{fromTime}/{toTime}" |> httpGet t
+            $"{apiBase}/personal/statement/{account}/{fromTime}/{toTime}" |> httpGet t
 
 module Mapping =
     open System.Text.RegularExpressions
-    type t = { monoBankAccount: string; map: Map<string, string>; regexp: List<Regex * String> }
+    type t = private { monoBankAccount: string; map: Map<string, string>; regexp: List<Regex * String> }
 
-    let readMapping (json: string) =
+    let fromJson (json: string) : t =
         let json: {| MonoBankAccount: string; Mapping: Map<string, List<string>> |} = Json.deserialize json
 
         let mappings =
             json.Mapping
             |> Map.toSeq
             |> Seq.map (fun (liability, keys) -> keys |> Seq.map (fun key -> key, liability))
-            |> Seq.reduce Seq.append
+            |> Seq.fold Seq.append Seq.empty
             |> Seq.fold
                 (fun (regex, direct) (k, v) ->
                     if k.StartsWith '/' && k.EndsWith '/' then
@@ -132,78 +135,66 @@ module Mapping =
 
         { monoBankAccount = json.MonoBankAccount; map = snd mappings; regexp = fst mappings }
 
-module Main =
-    type Statement = { id: string; date: DateTime; description: string; amount: int64; comment: string option }
+    let mapDescription (mapping: t) (description: string) : string =
+        Map.tryFind description mapping.map
+        |> Option.orElseWith (fun () -> mapping.regexp |> List.tryFind (fun (regex, _) -> regex.IsMatch description) |> Option.map snd)
+        |> Option.defaultValue description
 
-    module MonobankConverter =
+    let monobankAccount (t: t) : string = t.monoBankAccount
 
-        let mapStatement (st: Monobank.Statement) =
-            { id = st.id
-              date = DateTime.toLocalTime st.time
-              description = st.description
-              amount = st.amount
-              comment = st.comment }
+module Program =
+    open Main
 
-    let tr (map: Mapping.t) (src: string) : string =
-        let findByRegex (key: string) : String option = map.regexp |> List.tryFind (fun (regex, _) -> regex.IsMatch key) |> Option.map snd
-        Map.tryFind src map.map |> Option.orElseWith (fun () -> findByRegex src) |> Option.defaultValue src
-
-    let statementWriter (map: Mapping.t) (dt: DateTime) (statements: Statement seq) : string =
-        let tr (src: string) : string = tr map (src.Replace("\n", " .. "))
-
+    let statementWriter (mapping: Mapping.t) (dt: DateTime) (statements: Statement seq) : string =
         // combine multiple statements with same description into single line
-        let combine (description, statements) : int64 * 'a * StringBuilder =
-            let (amount, comment) =
+        let combine (description, statements) : int64 * 'a * string =
+            let amount, comments =
                 statements
                 |> Seq.fold
-                    (fun (amount, comments: StringBuilder) st ->
-                        Option.iter
-                            (fun note ->
-                                if not <| String.IsNullOrWhiteSpace note then
-                                    if comments.Length > 0 then
-                                        comments.Append " ; " |> ignore
+                    (fun (amount, comments) st ->
+                        let newComments =
+                            match st.comment with
+                            | Some c -> c :: comments
+                            | None -> comments
 
-                                    comments.Append note |> ignore)
-                            st.comment
+                        (amount + st.amount, newComments))
+                    (0L, [])
 
-                        (amount + st.amount, comments))
-                    (0L, StringBuilder())
-
+            let comment = Seq.rev comments |> String.concat " ; "
             amount, description, comment
 
-        let sb = StringBuilder()
-        
-        if not <| Seq.isEmpty statements then
-            sb.Append $"{dt:``yyyy/MM/dd``} *\n  {map.monoBankAccount}\n" |> ignore    
+        let format (amount, description, comments) =
+            let amount = -float amount / 100.0
+
+            if String.IsNullOrWhiteSpace comments then
+                $"  {description, -40} {amount, 8:``#,#0.#0 UAH``}"
+            else
+                $"""  {description, -40} {amount, 8:``#,#0.#0 UAH``}{"; ", 15}{comments}"""
+
         statements
-        |> Seq.groupBy (fun st -> tr st.description)
+        |> Seq.groupBy (fun st -> st.description.Replace("\n", " .. ") |> Mapping.mapDescription mapping)
         |> Seq.map combine
-        |> Seq.map (fun (amount, description, comment) ->
-            let amount = -(float) amount / 100.0
+        |> Seq.map format
+        |> function
+            | lines when Seq.isEmpty lines -> String.Empty
+            | lines ->
+                let account = Mapping.monobankAccount mapping
+                let sb = String.concat "\n" lines
+                $"{dt:``yyyy/MM/dd``} *\n  {account}\n{sb}"
 
-            if comment.Length > 0 then
-                comment.Insert(0, "; ") |> ignore
-
-            $"  {description, -40} {amount, -30:``#,#.#0 UAH``}{comment}".TrimEnd())
-        |> String.concat "\n"
-        |> sb.Append
-        |> string
-
-    let show (param: Cmdline.Request) =
-        use h = Monobank.Api.create param.key
-
+    let show (param: Cmdline.Request) : unit =
+        use api = Monobank.Api.create param.key
 
         let fromTime = param.range.start.ToUniversalTime() |> DateTime.toEpoch
         let tillTime = fromTime + param.range.length
 
-        let trMap = "mapping.json" |> System.IO.File.ReadAllText |> Mapping.readMapping
-        // Map.empty |> Map.add "АТБ" "Expenses:Food:Super:ATB"
+        let mapping = "mapping.json" |> System.IO.File.ReadAllText |> Mapping.fromJson
 
-        Monobank.Api.statements h 0 fromTime tillTime
+        Monobank.Api.statements api 0 fromTime tillTime
         |> Async.RunSynchronously
-        |> Array.map MonobankConverter.mapStatement
+        |> Array.map Monobank.mapStatement
         |> Array.groupBy (fun s -> s.date.Date)
-        |> Array.map (fun (d, a) -> statementWriter trMap d a)
+        |> Array.map (fun (date, statements) -> statementWriter mapping date statements)
         |> String.concat "\n;\n"
         |> printfn "%O"
 
@@ -211,10 +202,6 @@ module Main =
     let main argv =
         match Cmdline.parse argv with
         | None -> Cmdline.usage () |> printfn "%s"
-        | Some args ->
-            try
-                show args
-            with ex ->
-                printfn $"Err: %s{ex.Message}"
+        | Some args -> show args
 
         0

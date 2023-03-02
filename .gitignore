@@ -1,11 +1,14 @@
 # F# gitignore
 
+.idea/
+.config/
 obj/
 bin/
 _samples/
 _secret/
 
-
 .fake
 .ionide
 *.DotSettings.user
+**/coverage.json
+**.orig
